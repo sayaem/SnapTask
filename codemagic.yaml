@@ -1,0 +1,57 @@
+# Codemagic CI/CD configuration for Z Android App
+# For detailed configuration options, see: https://docs.codemagic.io/yaml-basic/yamls/
+
+workflows:
+  android-debug:
+    name: Z Android Debug Build
+    max_build_duration: 60
+    
+    # Use mac_mini_m2.
+    # Supported alternatives include: linux, linux_x2, linux_x4, mac_mini_m1, mac_mini_m2
+    instance_type: mac_mini_m2
+    
+    environment:
+      vars:
+        # General non-sensitive variables
+        APP_NAME: "Z"
+      java: 17
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: '*'
+          include: true
+          source: true
+
+    scripts:
+      - name: Generate gradle wrapper
+        script: |
+          gradle wrapper --gradle-version 9.3.1
+      - name: Set up local.properties
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+      - name: Set up debug keystore and environment
+        script: |
+          if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
+            python3 -c "import base64; open('debug.keystore', 'wb').write(base64.b64decode(open('debug.keystore.base64').read().strip()))" || base64 -d debug.keystore.base64 > debug.keystore || base64 -D -i debug.keystore.base64 -o debug.keystore
+          fi
+          if [ ! -f debug.keystore ]; then
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          if [ ! -f .env ] && [ -f .env.example ]; then
+            cp .env.example .env
+          fi
+      
+      - name: Build Android Debug APK
+        script: |
+          ./gradlew assembleDebug
+
+    artifacts:
+      # Pattern matching to locate the generated debug APKs and zip them for download/export
+      - app/build/outputs/apk/debug/*.apk
+
+    publishing:
+      email:
+        recipients:
+          - hello.sayaem@gmail.com

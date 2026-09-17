@@ -1,0 +1,70 @@
+package com.example.data.local
+
+import android.content.Context
+import android.content.SharedPreferences
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+class PreferencesManager(context: Context) {
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences("snaptask_prefs", Context.MODE_PRIVATE)
+
+    private val _onboardingCompleted = MutableStateFlow(
+        prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false)
+    )
+    val onboardingCompleted: StateFlow<Boolean> = _onboardingCompleted.asStateFlow()
+
+    private val _autoDetectionEnabled = MutableStateFlow(
+        prefs.getBoolean(KEY_AUTO_DETECTION, false)
+    )
+    val autoDetectionEnabled: StateFlow<Boolean> = _autoDetectionEnabled.asStateFlow()
+
+    private val _notificationsEnabled = MutableStateFlow(
+        prefs.getBoolean(KEY_NOTIFICATIONS, true)
+    )
+    val notificationsEnabled: StateFlow<Boolean> = _notificationsEnabled.asStateFlow()
+
+    private val _defaultReminderOffset = MutableStateFlow(
+        prefs.getInt(KEY_DEFAULT_REMINDER_OFFSET, 60) // 1 hour before default
+    )
+    val defaultReminderOffset: StateFlow<Int> = _defaultReminderOffset.asStateFlow()
+
+    private val _themeMode = MutableStateFlow(
+        prefs.getString(KEY_THEME_MODE, "SYSTEM") ?: "SYSTEM"
+    )
+    val themeMode: StateFlow<String> = _themeMode.asStateFlow()
+
+    fun setOnboardingCompleted(completed: Boolean) {
+        prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, completed).apply()
+        _onboardingCompleted.value = completed
+    }
+
+    fun setAutoDetectionEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_DETECTION, enabled).apply()
+        _autoDetectionEnabled.value = enabled
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_NOTIFICATIONS, enabled).apply()
+        _notificationsEnabled.value = enabled
+    }
+
+    fun setDefaultReminderOffset(minutes: Int) {
+        prefs.edit().putInt(KEY_DEFAULT_REMINDER_OFFSET, minutes).apply()
+        _defaultReminderOffset.value = minutes
+    }
+
+    fun setThemeMode(mode: String) {
+        prefs.edit().putString(KEY_THEME_MODE, mode).apply()
+        _themeMode.value = mode
+    }
+
+    companion object {
+        private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
+        private const val KEY_AUTO_DETECTION = "auto_detection_enabled"
+        private const val KEY_NOTIFICATIONS = "notifications_enabled"
+        private const val KEY_DEFAULT_REMINDER_OFFSET = "default_reminder_offset"
+        private const val KEY_THEME_MODE = "theme_mode"
+    }
+}
