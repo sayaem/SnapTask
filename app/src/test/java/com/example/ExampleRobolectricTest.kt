@@ -56,5 +56,18 @@ class ExampleRobolectricTest {
         assertEquals(Category.RECEIPT, classification.category)
         assertTrue(entities.any { it.type == EntityType.PRICE && it.value.contains("249") })
     }
+
+    @Test
+    fun `preferences tracking prevents duplicate screenshot processing`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = com.example.data.local.PreferencesManager(context)
+
+        val testUri = "content://media/external/images/media/99999"
+        assertEquals(false, prefs.isScreenshotProcessed(testUri))
+
+        prefs.markScreenshotProcessed(testUri, 1720000000L)
+        assertEquals(true, prefs.isScreenshotProcessed(testUri))
+        assertEquals(1720000000L, prefs.getLastScreenshotProcessedTimestamp())
+    }
 }
 

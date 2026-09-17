@@ -31,7 +31,7 @@ object ScreenshotPipeline {
         context: Context,
         imageUri: Uri,
         knownText: String? = null,
-        onProgress: (PipelineProgress) -> Unit
+        onProgress: (PipelineProgress) -> Unit = {}
     ): ScreenshotWithEntities {
         // Step 1: Reading text
         onProgress(PipelineProgress(PipelineStep.READING_TEXT))

@@ -43,6 +43,9 @@ interface ScreenshotDao {
     @Query("SELECT COUNT(*) FROM screenshots WHERE needsAttention = 1")
     fun getAttentionCount(): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM screenshots WHERE imageUri = :imageUri")
+    suspend fun countByImageUri(imageUri: String): Int
+
     @Query("SELECT category, COUNT(*) as count FROM screenshots WHERE needsAttention = 1 GROUP BY category")
     fun getAttentionCountsByCategory(): Flow<List<CategoryCount>>
 

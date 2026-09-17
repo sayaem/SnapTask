@@ -1,6 +1,9 @@
 package com.example.ui.more
 
+import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,21 +14,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CleaningServices
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -33,7 +29,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -48,13 +43,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.ui.theme.ElectricAccent
 import com.example.ui.theme.StatusSuccess
 import com.example.ui.viewmodel.SnapTaskViewModel
 import kotlinx.coroutines.launch
@@ -68,12 +60,24 @@ fun MoreScreen(
 
     val autoDetect by viewModel.preferences.autoDetectionEnabled.collectAsState()
     val notifsEnabled by viewModel.preferences.notificationsEnabled.collectAsState()
-    val themeMode by viewModel.preferences.themeMode.collectAsState()
 
     var showClearDataDialog by remember { mutableStateOf(false) }
     var showDataStatsDialog by remember { mutableStateOf(false) }
     var totalScreenshots by remember { mutableStateOf(0) }
     var totalActions by remember { mutableStateOf(0) }
+
+    // Permission launcher for auto detection
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.preferences.setAutoDetectionEnabled(true)
+            Toast.makeText(context, "Automatic screenshot detection enabled", Toast.LENGTH_SHORT).show()
+        } else {
+            viewModel.preferences.setAutoDetectionEnabled(false)
+            Toast.makeText(context, "Storage permission is needed to detect screenshots automatically", Toast.LENGTH_LONG).show()
+        }
+    }
 
     Surface(
         modifier = Modifier
@@ -84,9 +88,10 @@ fun MoreScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-                .padding(bottom = 80.dp)
+                .padding(horizontal = 20.dp)
+                .padding(top = 12.dp, bottom = 80.dp)
         ) {
             // Screen Title
             Text(
@@ -98,7 +103,7 @@ fun MoreScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Section 1: General Settings (PRD Section 14)
+            // Section 1: General Settings
             SectionHeader(title = "General")
 
             Card(
@@ -109,9 +114,25 @@ fun MoreScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     SettingToggleRow(
                         title = "Automatic screenshot detection",
-                        subtitle = "Analyze screenshots immediately when captured",
+                        subtitle = "Analyze new screenshots immediately when captured",
                         isChecked = autoDetect,
-                        onCheckedChange = { viewModel.preferences.setAutoDetectionEnabled(it) },
+                        onCheckedChange = { enable ->
+                            if (enable) {
+                                val requiredPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    android.Manifest.permission.READ_MEDIA_IMAGES
+                                } else {
+                                    android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                }
+                                if (viewModel.hasStoragePermission()) {
+                                    viewModel.preferences.setAutoDetectionEnabled(true)
+                                    Toast.makeText(context, "Automatic screenshot detection enabled", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    permissionLauncher.launch(requiredPerm)
+                                }
+                            } else {
+                                viewModel.preferences.setAutoDetectionEnabled(false)
+                            }
+                        },
                         testTag = "toggle_auto_detection"
                     )
 
@@ -129,7 +150,7 @@ fun MoreScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Section 2: Privacy (PRD Section 30)
+            // Section 2: Privacy
             SectionHeader(title = "Privacy & Local-First")
 
             Card(
@@ -148,8 +169,8 @@ fun MoreScreen(
 
                     PrivacyFeatureItem(text = "100% on-device OCR & entity extraction")
                     PrivacyFeatureItem(text = "No account required, no passwords")
-                    PrivacyFeatureItem(text = "Zero cloud uploads or server storage")
-                    PrivacyFeatureItem(text = "No advertising SDK reading your images")
+                    PrivacyFeatureItem(text = "Zero cloud uploads or external server sync")
+                    PrivacyFeatureItem(text = "No advertising tracking reading your images")
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
@@ -208,45 +229,7 @@ fun MoreScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Section 3: Test Personas & Demo Data
-            SectionHeader(title = "Testing & Personas")
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Seed PRD Sample Screenshots",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Includes Flight BG147, Doctor Appointment, AirPods Pro Receipt, CS 410 Assignment, and Sony Headphones.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = {
-                            viewModel.seedSamples()
-                            Toast.makeText(context, "Sample screenshots loaded into Inbox!", Toast.LENGTH_SHORT).show()
-                        },
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.testTag("seed_samples_button")
-                    ) {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Load Persona Screenshots")
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Section 4: About
+            // Section 3: About
             SectionHeader(title = "About SnapTask")
 
             Card(
@@ -256,7 +239,7 @@ fun MoreScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "SnapTask v1.0 MVP",
+                        text = "SnapTask v1.0",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -268,7 +251,7 @@ fun MoreScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Stack: Kotlin • Jetpack Compose • ML Kit OCR • Room Local DB\nInfrastructure: $0 / Local-first",
+                        text = "Local-first on-device processing • ML Kit OCR • Room SQLite",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -293,7 +276,7 @@ fun MoreScreen(
                     Text("Local database: snaptask.db (Room SQLite)")
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "No files or images have been transmitted to any remote servers.",
+                        text = "All images and extracted entities remain strictly on your local device.",
                         style = MaterialTheme.typography.labelSmall,
                         color = StatusSuccess
                     )

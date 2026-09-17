@@ -7,7 +7,6 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,7 +29,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -41,7 +39,6 @@ import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -53,7 +50,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -65,8 +61,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -90,7 +84,9 @@ fun DetailResultScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val screenshotWithEntities by viewModel.getScreenshotById(screenshotId).collectAsState()
+    val screenshotWithEntities by remember(screenshotId) {
+        viewModel.getScreenshotById(screenshotId)
+    }.collectAsState()
 
     var showReminderSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -102,7 +98,11 @@ fun DetailResultScreen(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text("Loading screenshot…")
+            Text(
+                text = "Loading screenshot…",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         return
     }
@@ -114,7 +114,6 @@ fun DetailResultScreen(
 
     val urlEntity = entities.find { it.type == EntityType.URL.name }
     val phoneEntity = entities.find { it.type == EntityType.PHONE.name }
-    val dateEntity = entities.find { it.type == EntityType.DATE.name }
 
     Scaffold(
         topBar = {
@@ -192,13 +191,23 @@ fun DetailResultScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (screenshot.imageUri.startsWith("sample://")) {
+                    if (screenshot.imageUri.isNotBlank()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(screenshot.imageUri)
+                                .crossfade(false)
+                                .build(),
+                            contentDescription = screenshot.title,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
@@ -206,21 +215,11 @@ fun DetailResultScreen(
                             Text(text = category.icon, fontSize = 48.sp)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Sample Screenshot",
+                                text = category.displayName,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    } else {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(screenshot.imageUri)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = screenshot.title,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit
-                        )
                     }
                 }
             }
@@ -243,7 +242,7 @@ fun DetailResultScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Confidence Handling (PRD Section 17)
+            // Confidence Handling
             val ambiguousEntity = entities.find { it.isAmbiguous }
             if (ambiguousEntity != null) {
                 Card(
@@ -300,7 +299,7 @@ fun DetailResultScreen(
                                     },
                                     label = { Text(choice) },
                                     colors = FilterChipDefaults.filterChipColors(
-                                        containerColor = Color.White
+                                        containerColor = MaterialTheme.colorScheme.surface
                                     )
                                 )
                             }
@@ -309,7 +308,7 @@ fun DetailResultScreen(
                 }
             }
 
-            // Extracted Information Section (PRD Section 18 & 23)
+            // Extracted Information Section
             Text(
                 text = "Extracted information",
                 style = MaterialTheme.typography.labelSmall,
@@ -379,7 +378,7 @@ fun DetailResultScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // What would you like to do? Action section (PRD Section 16 & 42)
+            // What would you like to do? Action section
             Text(
                 text = "What would you like to do?",
                 style = MaterialTheme.typography.titleMedium,
@@ -514,7 +513,7 @@ fun DetailResultScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Original OCR Text Section (PRD Section 23)
+            // Original OCR Text Section
             Card(
                 modifier = Modifier
                     .fillMaxWidth()

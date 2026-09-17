@@ -17,6 +17,8 @@ import com.example.data.local.dao.CategoryCount
 import com.example.data.local.entity.ExtractedEntityItem
 import com.example.data.local.entity.ScreenshotWithEntities
 import com.example.data.repository.ScreenshotRepository
+import com.example.detector.ScreenshotDetector
+import com.example.domain.model.Category
 import com.example.domain.model.EntityType
 import com.example.notifications.NotificationHelper
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,12 +42,39 @@ class SnapTaskViewModel(application: Application) : AndroidViewModel(application
     private val repository = ScreenshotRepository(db.screenshotDao())
     val preferences = PreferencesManager(application)
 
+    private val screenshotDetector = ScreenshotDetector(
+        context = application,
+        preferences = preferences,
+        isUriAlreadyProcessed = { uri -> repository.isImageUriProcessed(uri) },
+        onScreenshotDetected = { uri -> handleAutoDetectedScreenshot(uri) }
+    )
+
+    private val screenshotFlowCache = mutableMapOf<Long, StateFlow<ScreenshotWithEntities?>>()
+
     init {
         NotificationHelper.initChannels(application)
         viewModelScope.launch {
-            repository.seedSamplePersonasIfEmpty()
+            preferences.autoDetectionEnabled.collect { enabled ->
+                if (enabled) {
+                    screenshotDetector.start()
+                } else {
+                    screenshotDetector.stop()
+                }
+            }
         }
     }
+
+    fun checkAndStartDetector() {
+        if (preferences.autoDetectionEnabled.value) {
+            screenshotDetector.start()
+        }
+    }
+
+    fun stopDetector() {
+        screenshotDetector.stop()
+    }
+
+    fun hasStoragePermission(): Boolean = screenshotDetector.hasStoragePermission()
 
     val inboxScreenshots: StateFlow<List<ScreenshotWithEntities>> = repository.inboxScreenshots
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -117,13 +146,36 @@ class SnapTaskViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    private fun handleAutoDetectedScreenshot(uri: Uri) {
+        viewModelScope.launch {
+            val processed = ScreenshotPipeline.processImage(
+                context = getApplication(),
+                imageUri = uri,
+                knownText = null
+            )
+            val savedId = repository.insertProcessedScreenshot(processed)
+
+            if (preferences.notificationsEnabled.value) {
+                val cat = Category.fromString(processed.screenshot.category)
+                NotificationHelper.showDetectionNotification(
+                    context = getApplication(),
+                    notificationId = savedId.toInt(),
+                    title = "Screenshot analyzed",
+                    details = "${cat.displayName}: ${processed.screenshot.title}"
+                )
+            }
+        }
+    }
+
     fun dismissProcessing() {
         _processingState.value = ProcessingUiState()
     }
 
     fun getScreenshotById(id: Long): StateFlow<ScreenshotWithEntities?> {
-        return repository.getScreenshotById(id)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        return screenshotFlowCache.getOrPut(id) {
+            repository.getScreenshotById(id)
+                .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+        }
     }
 
     fun updateExtractedEntity(entity: ExtractedEntityItem) {
@@ -145,11 +197,10 @@ class SnapTaskViewModel(application: Application) : AndroidViewModel(application
             repository.markActionCreated(
                 screenshotId = screenshot.id,
                 actionType = "REMINDER",
-                scheduledTime = System.currentTimeMillis() + 60000L // Simulated schedule trigger
+                scheduledTime = System.currentTimeMillis() + 60000L
             )
 
-            // Show immediate system notification as requested in PRD Section 25
-            val notifTitle = "${screenshot.title}"
+            val notifTitle = screenshot.title
             val notifMessage = if (timeVal.isNotBlank()) "$dateVal • $timeVal" else dateVal
             NotificationHelper.showReminderNotification(
                 context = context,
@@ -217,15 +268,14 @@ class SnapTaskViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun seedSamples() {
-        viewModelScope.launch {
-            repository.seedSamples()
-        }
-    }
-
     suspend fun getStats(): Pair<Int, Int> {
         val total = repository.getTotalScreenshotsCount()
         val actions = repository.getTotalActionsCount()
         return Pair(total, actions)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        screenshotDetector.stop()
     }
 }

@@ -1,7 +1,6 @@
 package com.example.ui.inbox
 
 import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,19 +11,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
@@ -34,7 +33,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -50,7 +48,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -66,7 +63,6 @@ fun InboxScreen(
     viewModel: SnapTaskViewModel,
     onNavigateToDetail: (Long) -> Unit
 ) {
-    val context = LocalContext.current
     val inboxScreenshots by viewModel.inboxScreenshots.collectAsState()
     val attentionCount by viewModel.attentionCount.collectAsState()
     val attentionCategoryCounts by viewModel.attentionCategoryCounts.collectAsState()
@@ -98,6 +94,8 @@ fun InboxScreen(
     }
 
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showImportMenu = true },
@@ -106,7 +104,7 @@ fun InboxScreen(
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier
                     .testTag("inbox_fab")
-                    .padding(bottom = 60.dp)
+                    .padding(bottom = 68.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -121,7 +119,8 @@ fun InboxScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(top = 16.dp)
+                .statusBarsPadding()
+                .padding(top = 12.dp)
                 .testTag("inbox_screen")
         ) {
             // Header
@@ -146,7 +145,7 @@ fun InboxScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Attention Card (PRD Section 12)
+            // Attention Card
             if (attentionCount > 0) {
                 AttentionCard(
                     count = attentionCount,
@@ -172,7 +171,7 @@ fun InboxScreen(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(text = "🎉", fontSize = 48.sp)
+                        Text(text = "✨", fontSize = 48.sp)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "You're all caught up",
@@ -182,20 +181,25 @@ fun InboxScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "New screenshots will appear here automatically, or tap + to analyze an image now.",
+                            text = "New screenshots you analyze will appear here.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 16.dp)
+                            modifier = Modifier.padding(horizontal = 24.dp)
                         )
                         Spacer(modifier = Modifier.height(20.dp))
-                        OutlinedButton(
-                            onClick = { viewModel.seedSamples() },
-                            shape = RoundedCornerShape(12.dp)
+                        Button(
+                            onClick = {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.testTag("inbox_empty_analyze_button")
                         ) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Load persona samples")
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Choose screenshot")
                         }
                     }
                 }
@@ -242,7 +246,7 @@ fun InboxScreen(
                     .padding(horizontal = 24.dp, vertical = 12.dp)
             ) {
                 Text(
-                    text = "Import Screenshot",
+                    text = "Analyze Screenshot",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -269,8 +273,8 @@ fun InboxScreen(
                         Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
-                            Text("Choose from Gallery / Screenshots", fontWeight = FontWeight.Medium)
-                            Text("Zero-permission standard Android photo picker", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Choose from Photos / Screenshots", fontWeight = FontWeight.Medium)
+                            Text("Select an image to run local OCR extraction", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -296,8 +300,8 @@ fun InboxScreen(
                         Icon(Icons.Default.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
-                            Text("Simulate Screenshot Text", fontWeight = FontWeight.Medium)
-                            Text("Type or paste screenshot text to test local OCR parsing", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Enter Screenshot Text", fontWeight = FontWeight.Medium)
+                            Text("Type or paste text to test local OCR parsing", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -312,7 +316,7 @@ fun InboxScreen(
         AlertDialog(
             onDismissRequest = { showCustomTextInputDialog = false },
             title = {
-                Text("Simulate Screenshot Content", fontWeight = FontWeight.SemiBold)
+                Text("Analyze Text", fontWeight = FontWeight.SemiBold)
             },
             text = {
                 Column {
@@ -341,7 +345,7 @@ fun InboxScreen(
                         if (text.isNotBlank()) {
                             showCustomTextInputDialog = false
                             viewModel.processScreenshot(
-                                uri = Uri.parse("sample://custom_${System.currentTimeMillis()}"),
+                                uri = Uri.parse("text://custom_${System.currentTimeMillis()}"),
                                 knownText = text
                             ) { newId ->
                                 onNavigateToDetail(newId)
@@ -363,7 +367,7 @@ fun InboxScreen(
         )
     }
 
-    // Processing Dialog (PRD Section 15)
+    // Processing Dialog
     if (processingState.isProcessing) {
         ProcessingDialog(
             imageUri = processingState.imageUri,

@@ -98,21 +98,20 @@ fun ScreenshotCard(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (screenshot.imageUri.startsWith("sample://")) {
-                        // Styled persona category graphic
-                        Text(
-                            text = category.icon,
-                            fontSize = 32.sp
-                        )
-                    } else {
+                    if (screenshot.imageUri.isNotBlank() && !screenshot.imageUri.startsWith("text://")) {
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(screenshot.imageUri)
-                                .crossfade(true)
+                                .crossfade(false)
                                 .build(),
                             contentDescription = screenshot.title,
                             modifier = Modifier.matchParentSize(),
                             contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = category.icon,
+                            fontSize = 32.sp
                         )
                     }
                 }

@@ -9,14 +9,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -33,13 +32,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.domain.model.Category
 import com.example.ui.inbox.ScreenshotCard
 import com.example.ui.viewmodel.SnapTaskViewModel
 
@@ -48,7 +45,6 @@ fun SavedScreen(
     viewModel: SnapTaskViewModel,
     onNavigateToDetail: (Long) -> Unit
 ) {
-    val context = LocalContext.current
     val savedScreenshots by viewModel.filteredSavedScreenshots.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedCategory by viewModel.selectedCategoryFilter.collectAsState()
@@ -74,7 +70,8 @@ fun SavedScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 16.dp)
+                .statusBarsPadding()
+                .padding(top = 12.dp)
         ) {
             // Screen Title
             Text(
@@ -87,7 +84,7 @@ fun SavedScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Search Bar (PRD Section 14)
+            // Search Bar
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.searchQuery.value = it },
@@ -96,7 +93,7 @@ fun SavedScreen(
                     .padding(horizontal = 20.dp)
                     .testTag("saved_search_input"),
                 placeholder = {
-                    Text("🔍 Search screenshots…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Search screenshots…", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 },
                 leadingIcon = {
                     Icon(
@@ -124,7 +121,7 @@ fun SavedScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Category Filter Chips (PRD Section 14)
+            // Category Filter Chips
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 20.dp),
@@ -173,7 +170,7 @@ fun SavedScreen(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = if (searchQuery.isNotBlank()) "Try searching for a different keyword or airline, doctor, or item" else "Screenshots you review and save will appear here in your permanent archive.",
+                            text = if (searchQuery.isNotBlank()) "Try searching for a different keyword or topic" else "Screenshots you review and save will appear here in your permanent archive.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,

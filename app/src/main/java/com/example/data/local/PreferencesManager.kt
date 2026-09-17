@@ -60,11 +60,41 @@ class PreferencesManager(context: Context) {
         _themeMode.value = mode
     }
 
+    fun getLastScreenshotProcessedTimestamp(): Long {
+        return prefs.getLong(KEY_LAST_SCREENSHOT_TIMESTAMP, 0L)
+    }
+
+    fun isScreenshotProcessed(identifier: String): Boolean {
+        val processedSet = prefs.getStringSet(KEY_PROCESSED_SCREENSHOT_IDS, emptySet()) ?: emptySet()
+        return processedSet.contains(identifier)
+    }
+
+    fun markScreenshotProcessed(identifier: String, timestampSec: Long) {
+        val currentSet = prefs.getStringSet(KEY_PROCESSED_SCREENSHOT_IDS, emptySet())?.toMutableSet() ?: mutableSetOf()
+        // Keep set size bounded to most recent 200 items to avoid growing unboundedly
+        if (currentSet.size > 200) {
+            val pruned = currentSet.toList().takeLast(100).toMutableSet()
+            pruned.add(identifier)
+            prefs.edit()
+                .putStringSet(KEY_PROCESSED_SCREENSHOT_IDS, pruned)
+                .putLong(KEY_LAST_SCREENSHOT_TIMESTAMP, timestampSec)
+                .apply()
+        } else {
+            currentSet.add(identifier)
+            prefs.edit()
+                .putStringSet(KEY_PROCESSED_SCREENSHOT_IDS, currentSet)
+                .putLong(KEY_LAST_SCREENSHOT_TIMESTAMP, timestampSec)
+                .apply()
+        }
+    }
+
     companion object {
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
         private const val KEY_AUTO_DETECTION = "auto_detection_enabled"
         private const val KEY_NOTIFICATIONS = "notifications_enabled"
         private const val KEY_DEFAULT_REMINDER_OFFSET = "default_reminder_offset"
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_LAST_SCREENSHOT_TIMESTAMP = "last_screenshot_timestamp"
+        private const val KEY_PROCESSED_SCREENSHOT_IDS = "processed_screenshot_ids"
     }
 }
