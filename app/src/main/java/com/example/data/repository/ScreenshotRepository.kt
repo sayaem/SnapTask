@@ -15,6 +15,7 @@ class ScreenshotRepository(
     val inboxScreenshots: Flow<List<ScreenshotWithEntities>> = dao.getInboxScreenshots()
     val attentionCount: Flow<Int> = dao.getAttentionCount()
     val attentionCountsByCategory: Flow<List<CategoryCount>> = dao.getAttentionCountsByCategory()
+    val automaticReminders: Flow<List<ScreenshotWithEntities>> = dao.getAutomaticReminders()
 
     fun getScreenshotById(id: Long): Flow<ScreenshotWithEntities?> = dao.getScreenshotById(id)
 

@@ -15,7 +15,7 @@ import com.example.data.local.entity.ScreenshotEntity
         ExtractedEntityItem::class,
         ActionItem::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

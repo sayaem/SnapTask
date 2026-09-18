@@ -22,7 +22,14 @@ data class ScreenshotEntity(
     val confidence: Float = 0.95f,
     val status: String = "NEEDS_ATTENTION",
     val isSaved: Boolean = true,
-    val needsAttention: Boolean = true
+    val needsAttention: Boolean = true,
+    // Background processing & automatic reminder lifecycle tracking (Section 3H)
+    val processingStatus: String = "ACTIONABLE", // DETECTED, PROCESSING, ACTIONABLE, UNACTIONABLE, REMINDER_CREATED, FAILED
+    val relevanceDecision: String = "ACTIONABLE",
+    val reminderId: Long? = null,
+    val reminderCreatedAt: Long? = null,
+    val processingError: String? = null,
+    val eventFingerprint: String? = null
 )
 
 @Entity(

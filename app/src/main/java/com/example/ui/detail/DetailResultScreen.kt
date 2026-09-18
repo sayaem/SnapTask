@@ -226,118 +226,137 @@ fun DetailResultScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            val isActionable = category != Category.UNACTIONABLE && entities.isNotEmpty()
+
             // Category and Title Header
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = category.icon, fontSize = 24.sp)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = screenshot.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+            if (!isActionable) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "✨", fontSize = 28.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Nothing actionable found",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "This screenshot doesn't appear to contain information that needs an action.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = category.icon, fontSize = 24.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = screenshot.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Confidence Handling
-            val ambiguousEntity = entities.find { it.isAmbiguous }
-            if (ambiguousEntity != null) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = StatusWarningSubtle
-                    )
-                ) {
-                    Column(
+            if (isActionable) {
+                // Confidence Handling
+                val ambiguousEntity = entities.find { it.isAmbiguous }
+                if (ambiguousEntity != null) {
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.HelpOutline,
-                                contentDescription = null,
-                                tint = StatusWarning,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Possible date detected: ${ambiguousEntity.value}",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "What does this date represent?",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            .padding(bottom = 16.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = StatusWarningSubtle
                         )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
                         ) {
-                            listOf("Event", "Deadline", "Expiry", "Other").forEach { choice ->
-                                FilterChip(
-                                    selected = false,
-                                    onClick = {
-                                        viewModel.updateExtractedEntity(
-                                            ambiguousEntity.copy(
-                                                label = choice,
-                                                isAmbiguous = false,
-                                                resolvedType = choice
-                                            )
-                                        )
-                                        Toast.makeText(context, "Saved as $choice", Toast.LENGTH_SHORT).show()
-                                    },
-                                    label = { Text(choice) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        containerColor = MaterialTheme.colorScheme.surface
-                                    )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.HelpOutline,
+                                    contentDescription = null,
+                                    tint = StatusWarning,
+                                    modifier = Modifier.size(20.dp)
                                 )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Possible date detected: ${ambiguousEntity.value}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "What does this date represent?",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                listOf("Event", "Deadline", "Expiry", "Other").forEach { choice ->
+                                    FilterChip(
+                                        selected = false,
+                                        onClick = {
+                                            viewModel.updateExtractedEntity(
+                                                ambiguousEntity.copy(
+                                                    label = choice,
+                                                    isAmbiguous = false,
+                                                    resolvedType = choice
+                                                )
+                                            )
+                                            Toast.makeText(context, "Saved as $choice", Toast.LENGTH_SHORT).show()
+                                        },
+                                        label = { Text(choice) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            containerColor = MaterialTheme.colorScheme.surface
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // Extracted Information Section
-            Text(
-                text = "Extracted information",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                // Extracted Information Section
+                Text(
+                    text = "Extracted information",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-            Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    if (entities.isEmpty()) {
-                        Text(
-                            text = "No specific entities extracted. View original text below.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
                         entities.forEach { entity ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -374,140 +393,176 @@ fun DetailResultScreen(
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // What would you like to do? Action section
-            Text(
-                text = "What would you like to do?",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+                // What would you like to do? Action section
+                Text(
+                    text = "What would you like to do?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // Primary actions
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Button(
-                    onClick = { showReminderSheet = true },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp)
-                        .testTag("detail_remind_button"),
-                    shape = RoundedCornerShape(14.dp)
+                // Primary actions
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Alarm,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Remind me",
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
+                    Button(
+                        onClick = { showReminderSheet = true },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp)
+                            .testTag("detail_remind_button"),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Alarm,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Remind me",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
 
-                OutlinedButton(
-                    onClick = {
-                        viewModel.addToCalendar(item, context)
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp)
-                        .testTag("detail_calendar_button"),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarMonth,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Calendar",
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Secondary actions
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (urlEntity != null) {
                     OutlinedButton(
                         onClick = {
-                            var url = urlEntity.value
-                            if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                                url = "https://$url"
-                            }
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                            try {
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Cannot open URL", Toast.LENGTH_SHORT).show()
-                            }
+                            viewModel.addToCalendar(item, context)
                         },
-                        shape = RoundedCornerShape(12.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp)
+                            .testTag("detail_calendar_button"),
+                        shape = RoundedCornerShape(14.dp)
                     ) {
-                        Icon(Icons.Default.OpenInBrowser, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Open link")
+                        Text(
+                            text = "Calendar",
+                            style = MaterialTheme.typography.labelMedium
+                        )
                     }
                 }
 
-                if (phoneEntity != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Secondary actions
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (urlEntity != null) {
+                        OutlinedButton(
+                            onClick = {
+                                var url = urlEntity.value
+                                if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                                    url = "https://$url"
+                                }
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Cannot open URL", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.OpenInBrowser, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Open link")
+                        }
+                    }
+
+                    if (phoneEntity != null) {
+                        OutlinedButton(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${phoneEntity.value}"))
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Cannot open dialer", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Call")
+                        }
+                    }
+
                     OutlinedButton(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${phoneEntity.value}"))
-                            try {
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Cannot open dialer", Toast.LENGTH_SHORT).show()
-                            }
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("Screenshot Details", "${screenshot.title}\n\n${screenshot.rawText}")
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "Details copied to clipboard", Toast.LENGTH_SHORT).show()
                         },
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Call")
+                        Text("Copy details")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.markReviewed(screenshot.id)
+                            Toast.makeText(context, "Marked as Saved", Toast.LENGTH_SHORT).show()
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Save to archive")
                     }
                 }
-
-                OutlinedButton(
-                    onClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("Screenshot Details", "${screenshot.title}\n\n${screenshot.rawText}")
-                        clipboard.setPrimaryClip(clip)
-                        Toast.makeText(context, "Details copied to clipboard", Toast.LENGTH_SHORT).show()
-                    },
-                    shape = RoundedCornerShape(12.dp)
+            } else {
+                // Quick actions for Unactionable screenshots
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Copy details")
-                }
+                    if (screenshot.rawText.isNotBlank()) {
+                        OutlinedButton(
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clip = ClipData.newPlainText("Detected Text", screenshot.rawText)
+                                clipboard.setPrimaryClip(clip)
+                                Toast.makeText(context, "Detected text copied to clipboard", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Copy text")
+                        }
+                    }
 
-                OutlinedButton(
-                    onClick = {
-                        viewModel.markReviewed(screenshot.id)
-                        Toast.makeText(context, "Marked as Saved", Toast.LENGTH_SHORT).show()
-                    },
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Save to archive")
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.markReviewed(screenshot.id)
+                            Toast.makeText(context, "Saved to archive", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Save to archive")
+                    }
                 }
             }
 

@@ -2,9 +2,15 @@ package com.example.ai.processor
 
 import android.content.Context
 import android.net.Uri
-import com.example.ai.classifier.ScreenshotClassifier
+import com.example.ai.classifier.ContextClassificationResult
+import com.example.ai.classifier.ContextClassifier
 import com.example.ai.extractor.EntityExtractor
 import com.example.ai.ocr.TextRecognizerHelper
+import com.example.ai.validator.RelevanceValidationResult
+import com.example.ai.validator.RelevanceValidator
+import com.example.domain.model.ActionType
+import com.example.domain.model.Category
+import com.example.domain.model.OcrDocument
 import com.example.data.local.entity.ActionItem
 import com.example.data.local.entity.ExtractedEntityItem
 import com.example.data.local.entity.ScreenshotEntity
@@ -25,6 +31,13 @@ data class PipelineProgress(
     val result: ScreenshotWithEntities? = null
 )
 
+data class PipelineDetailedResult(
+    val screenshotWithEntities: ScreenshotWithEntities,
+    val ocrDocument: OcrDocument,
+    val contextResult: ContextClassificationResult,
+    val validationResult: RelevanceValidationResult
+)
+
 object ScreenshotPipeline {
 
     suspend fun processImage(
@@ -33,81 +46,98 @@ object ScreenshotPipeline {
         knownText: String? = null,
         onProgress: (PipelineProgress) -> Unit = {}
     ): ScreenshotWithEntities {
-        // Step 1: Reading text
+        return processImageDetailed(context, imageUri, knownText, onProgress).screenshotWithEntities
+    }
+
+    suspend fun processImageDetailed(
+        context: Context,
+        imageUri: Uri,
+        knownText: String? = null,
+        onProgress: (PipelineProgress) -> Unit = {}
+    ): PipelineDetailedResult {
+        // Step 1: OCR with spatial bounding boxes
         onProgress(PipelineProgress(PipelineStep.READING_TEXT))
-        val rawText = if (!knownText.isNullOrBlank()) {
-            delay(150) // Subtle natural feedback
-            knownText
+        val ocrDocument = if (!knownText.isNullOrBlank()) {
+            delay(100)
+            OcrDocument.fromRawText(knownText)
         } else {
-            val recognized = TextRecognizerHelper.recognizeText(context, imageUri)
-            if (recognized.isBlank()) {
-                // Return fallback if nothing read
-                ""
-            } else {
-                recognized
-            }
+            val doc = TextRecognizerHelper.recognizeDocument(context, imageUri)
+            doc
         }
 
-        // Step 2: Finding dates & entities
-        onProgress(PipelineProgress(PipelineStep.FINDING_DATES))
-        delay(120)
-        val extractedRaw = EntityExtractor.extractAll(rawText)
-
-        // Step 3: Understanding content & classification
+        // Step 2: Screenshot/context classification BEFORE entity extraction
         onProgress(PipelineProgress(PipelineStep.UNDERSTANDING_CONTENT))
-        delay(120)
-        val classification = ScreenshotClassifier.classify(rawText, extractedRaw)
+        delay(80)
+        val contextResult = ContextClassifier.classifyContext(ocrDocument)
 
-        // Step 4: Finding actions
+        // Step 3: Candidate entity extraction (with spatial bounds)
+        onProgress(PipelineProgress(PipelineStep.FINDING_DATES))
+        delay(80)
+        val candidates = EntityExtractor.extractCandidates(ocrDocument)
+
+        // Step 4: Relevance validation & actionable information detection
         onProgress(PipelineProgress(PipelineStep.FINDING_ACTIONS))
-        delay(100)
+        delay(80)
+        val validationResult = RelevanceValidator.validate(
+            candidates = candidates,
+            contextResult = contextResult,
+            ocrDocument = ocrDocument
+        )
+
+        // Step 5: Result generation
+        val isActionable = validationResult.isActionable
+        val finalCategory = validationResult.category
 
         val screenshotEntity = ScreenshotEntity(
             id = 0,
             imageUri = imageUri.toString(),
             createdAt = System.currentTimeMillis(),
             processedAt = System.currentTimeMillis(),
-            category = classification.category.name,
-            title = classification.title,
-            rawText = rawText,
-            confidence = classification.confidence,
-            status = "NEEDS_ATTENTION",
+            category = finalCategory.name,
+            title = validationResult.title,
+            rawText = ocrDocument.fullText,
+            confidence = validationResult.confidence,
+            status = if (isActionable) "NEEDS_ATTENTION" else "REVIEWED",
             isSaved = true,
-            needsAttention = true
+            needsAttention = isActionable,
+            processingStatus = if (isActionable) "ACTIONABLE" else "UNACTIONABLE",
+            relevanceDecision = if (isActionable) "ACTIONABLE" else "UNACTIONABLE"
         )
 
-        val entityItems = extractedRaw.map { raw ->
+        val entityItems = validationResult.validatedEntities.map { ent ->
             ExtractedEntityItem(
                 id = 0,
                 screenshotId = 0,
-                type = raw.type.name,
-                label = raw.label,
-                value = raw.value,
-                confidence = raw.confidence,
-                isAmbiguous = raw.isAmbiguous
+                type = ent.type.name,
+                label = ent.label,
+                value = ent.value,
+                confidence = ent.confidence,
+                isAmbiguous = ent.isAmbiguous
             )
         }
 
         val allActions = mutableListOf<ActionItem>()
-        allActions.add(
-            ActionItem(
-                id = 0,
-                screenshotId = 0,
-                type = classification.primaryAction.name,
-                status = "PENDING",
-                details = classification.title
-            )
-        )
-        for (sec in classification.secondaryActions) {
-            allActions.add(
-                ActionItem(
-                    id = 0,
-                    screenshotId = 0,
-                    type = sec.name,
-                    status = "PENDING",
-                    details = ""
-                )
-            )
+        if (isActionable) {
+            when (finalCategory) {
+                Category.TRAVEL, Category.EVENT, Category.STUDY, Category.MESSAGE -> {
+                    allActions.add(ActionItem(id = 0, screenshotId = 0, type = ActionType.REMINDER.name, details = validationResult.title))
+                    allActions.add(ActionItem(id = 0, screenshotId = 0, type = ActionType.CALENDAR.name, details = validationResult.title))
+                }
+                Category.RECEIPT -> {
+                    allActions.add(ActionItem(id = 0, screenshotId = 0, type = ActionType.SAVE_RECEIPT.name, details = validationResult.title))
+                    allActions.add(ActionItem(id = 0, screenshotId = 0, type = ActionType.REMINDER.name, details = validationResult.title))
+                }
+                Category.PRODUCT -> {
+                    allActions.add(ActionItem(id = 0, screenshotId = 0, type = ActionType.SAVE_PRODUCT.name, details = validationResult.title))
+                    allActions.add(ActionItem(id = 0, screenshotId = 0, type = ActionType.REMINDER.name, details = validationResult.title))
+                }
+                Category.PAYMENT, Category.LOCATION -> {
+                    allActions.add(ActionItem(id = 0, screenshotId = 0, type = ActionType.COPY.name, details = validationResult.title))
+                }
+                else -> {
+                    allActions.add(ActionItem(id = 0, screenshotId = 0, type = ActionType.COPY.name, details = validationResult.title))
+                }
+            }
         }
 
         val finalResult = ScreenshotWithEntities(
@@ -117,6 +147,11 @@ object ScreenshotPipeline {
         )
 
         onProgress(PipelineProgress(PipelineStep.COMPLETED, isDone = true, result = finalResult))
-        return finalResult
+        return PipelineDetailedResult(
+            screenshotWithEntities = finalResult,
+            ocrDocument = ocrDocument,
+            contextResult = contextResult,
+            validationResult = validationResult
+        )
     }
 }

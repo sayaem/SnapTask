@@ -59,10 +59,13 @@ fun MoreScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val autoDetect by viewModel.preferences.autoDetectionEnabled.collectAsState()
+    val autoReminders by viewModel.preferences.autoRemindersEnabled.collectAsState()
     val notifsEnabled by viewModel.preferences.notificationsEnabled.collectAsState()
+    val autoReminderList by viewModel.automaticReminders.collectAsState()
 
     var showClearDataDialog by remember { mutableStateOf(false) }
     var showDataStatsDialog by remember { mutableStateOf(false) }
+    var showAutoRemindersDialog by remember { mutableStateOf(false) }
     var totalScreenshots by remember { mutableStateOf(0) }
     var totalActions by remember { mutableStateOf(0) }
 
@@ -135,6 +138,40 @@ fun MoreScreen(
                         },
                         testTag = "toggle_auto_detection"
                     )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                    SettingToggleRow(
+                        title = "Automatic reminders",
+                        subtitle = "Automatically create reminders when SnapTask confidently detects an upcoming event, deadline, or important task.",
+                        isChecked = autoReminders,
+                        onCheckedChange = { viewModel.preferences.setAutoRemindersEnabled(it) },
+                        testTag = "toggle_auto_reminders"
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showAutoRemindersDialog = true }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Visibility,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = if (autoReminderList.isNotEmpty()) "Review automatic reminders (${autoReminderList.size})" else "Review automatic reminders",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
@@ -315,6 +352,89 @@ fun MoreScreen(
             dismissButton = {
                 TextButton(onClick = { showClearDataDialog = false }) {
                     Text("Cancel")
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    // Review Automatic Reminders Dialog (Section 3H)
+    if (showAutoRemindersDialog) {
+        AlertDialog(
+            onDismissRequest = { showAutoRemindersDialog = false },
+            title = {
+                Text("Automatic Reminders", fontWeight = FontWeight.SemiBold)
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    if (autoReminderList.isEmpty()) {
+                        Text(
+                            text = "No automatic reminders active. When SnapTask detects upcoming events or deadlines from screenshots, they will appear here.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text(
+                            text = "Reminders automatically created from detected screenshots. You can cancel any reminder at any time.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        autoReminderList.forEach { item ->
+                            val reminderAction = item.actions.find { it.type == "REMINDER" }
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = item.screenshot.title,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (reminderAction?.details?.isNotBlank() == true) {
+                                            Text(
+                                                text = reminderAction.details,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                    if (reminderAction != null) {
+                                        TextButton(
+                                            onClick = {
+                                                viewModel.cancelAutomaticReminder(item.screenshot.id, reminderAction.id)
+                                                Toast.makeText(context, "Reminder cancelled", Toast.LENGTH_SHORT).show()
+                                            }
+                                        ) {
+                                            Text("Cancel", color = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAutoRemindersDialog = false }) {
+                    Text("Done")
                 }
             },
             shape = RoundedCornerShape(20.dp)

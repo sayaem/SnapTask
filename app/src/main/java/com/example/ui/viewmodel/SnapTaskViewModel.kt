@@ -17,7 +17,9 @@ import com.example.data.local.dao.CategoryCount
 import com.example.data.local.entity.ExtractedEntityItem
 import com.example.data.local.entity.ScreenshotWithEntities
 import com.example.data.repository.ScreenshotRepository
+import com.example.detector.BackgroundScreenshotProcessor
 import com.example.detector.ScreenshotDetector
+import com.example.detector.ScreenshotJobService
 import com.example.domain.model.Category
 import com.example.domain.model.EntityType
 import com.example.notifications.NotificationHelper
@@ -57,8 +59,10 @@ class SnapTaskViewModel(application: Application) : AndroidViewModel(application
             preferences.autoDetectionEnabled.collect { enabled ->
                 if (enabled) {
                     screenshotDetector.start()
+                    ScreenshotJobService.scheduleJob(application)
                 } else {
                     screenshotDetector.stop()
+                    ScreenshotJobService.cancelJob(application)
                 }
             }
         }
@@ -67,6 +71,7 @@ class SnapTaskViewModel(application: Application) : AndroidViewModel(application
     fun checkAndStartDetector() {
         if (preferences.autoDetectionEnabled.value) {
             screenshotDetector.start()
+            ScreenshotJobService.scheduleJob(getApplication())
         }
     }
 
@@ -80,6 +85,9 @@ class SnapTaskViewModel(application: Application) : AndroidViewModel(application
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allScreenshots: StateFlow<List<ScreenshotWithEntities>> = repository.allScreenshots
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val automaticReminders: StateFlow<List<ScreenshotWithEntities>> = repository.automaticReminders
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val attentionCount: StateFlow<Int> = repository.attentionCount
@@ -148,22 +156,20 @@ class SnapTaskViewModel(application: Application) : AndroidViewModel(application
 
     private fun handleAutoDetectedScreenshot(uri: Uri) {
         viewModelScope.launch {
-            val processed = ScreenshotPipeline.processImage(
+            val identifier = "vm_${uri.hashCode()}_${System.currentTimeMillis() / 1000}"
+            BackgroundScreenshotProcessor.processScreenshot(
                 context = getApplication(),
                 imageUri = uri,
-                knownText = null
+                identifier = identifier
             )
-            val savedId = repository.insertProcessedScreenshot(processed)
+        }
+    }
 
-            if (preferences.notificationsEnabled.value) {
-                val cat = Category.fromString(processed.screenshot.category)
-                NotificationHelper.showDetectionNotification(
-                    context = getApplication(),
-                    notificationId = savedId.toInt(),
-                    title = "Screenshot analyzed",
-                    details = "${cat.displayName}: ${processed.screenshot.title}"
-                )
-            }
+    fun cancelAutomaticReminder(screenshotId: Long, actionId: Long) {
+        viewModelScope.launch {
+            NotificationHelper.cancelSystemAlarm(getApplication(), actionId)
+            db.screenshotDao().deleteActionById(actionId)
+            db.screenshotDao().updateProcessingStatus(screenshotId, "ACTIONABLE")
         }
     }
 

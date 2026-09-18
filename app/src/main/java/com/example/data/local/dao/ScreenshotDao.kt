@@ -46,6 +46,25 @@ interface ScreenshotDao {
     @Query("SELECT COUNT(*) FROM screenshots WHERE imageUri = :imageUri")
     suspend fun countByImageUri(imageUri: String): Int
 
+    @Query("SELECT * FROM screenshots WHERE imageUri = :imageUri LIMIT 1")
+    suspend fun getScreenshotByImageUri(imageUri: String): ScreenshotEntity?
+
+    @Query("SELECT COUNT(*) FROM screenshots WHERE eventFingerprint = :fingerprint AND eventFingerprint IS NOT NULL")
+    suspend fun countByFingerprint(fingerprint: String): Int
+
+    @Transaction
+    @Query("SELECT * FROM screenshots WHERE processingStatus = 'REMINDER_CREATED' OR reminderId IS NOT NULL ORDER BY processedAt DESC")
+    fun getAutomaticReminders(): Flow<List<ScreenshotWithEntities>>
+
+    @Query("UPDATE screenshots SET processingStatus = :status, processingError = :error WHERE id = :id")
+    suspend fun updateProcessingStatus(id: Long, status: String, error: String? = null)
+
+    @Query("UPDATE screenshots SET processingStatus = 'REMINDER_CREATED', reminderId = :reminderId, reminderCreatedAt = :timestamp, eventFingerprint = :fingerprint WHERE id = :id")
+    suspend fun updateReminderCreated(id: Long, reminderId: Long, timestamp: Long, fingerprint: String?)
+
+    @Query("DELETE FROM actions WHERE id = :actionId")
+    suspend fun deleteActionById(actionId: Long)
+
     @Query("SELECT category, COUNT(*) as count FROM screenshots WHERE needsAttention = 1 GROUP BY category")
     fun getAttentionCountsByCategory(): Flow<List<CategoryCount>>
 

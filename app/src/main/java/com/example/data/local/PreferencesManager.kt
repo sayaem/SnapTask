@@ -25,6 +25,11 @@ class PreferencesManager(context: Context) {
     )
     val notificationsEnabled: StateFlow<Boolean> = _notificationsEnabled.asStateFlow()
 
+    private val _autoRemindersEnabled = MutableStateFlow(
+        prefs.getBoolean(KEY_AUTO_REMINDERS, true)
+    )
+    val autoRemindersEnabled: StateFlow<Boolean> = _autoRemindersEnabled.asStateFlow()
+
     private val _defaultReminderOffset = MutableStateFlow(
         prefs.getInt(KEY_DEFAULT_REMINDER_OFFSET, 60) // 1 hour before default
     )
@@ -48,6 +53,11 @@ class PreferencesManager(context: Context) {
     fun setNotificationsEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_NOTIFICATIONS, enabled).apply()
         _notificationsEnabled.value = enabled
+    }
+
+    fun setAutoRemindersEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_REMINDERS, enabled).apply()
+        _autoRemindersEnabled.value = enabled
     }
 
     fun setDefaultReminderOffset(minutes: Int) {
@@ -88,13 +98,32 @@ class PreferencesManager(context: Context) {
         }
     }
 
+    fun isFingerprintProcessed(fingerprint: String): Boolean {
+        val processedSet = prefs.getStringSet(KEY_PROCESSED_FINGERPRINTS, emptySet()) ?: emptySet()
+        return processedSet.contains(fingerprint)
+    }
+
+    fun markFingerprintProcessed(fingerprint: String) {
+        val currentSet = prefs.getStringSet(KEY_PROCESSED_FINGERPRINTS, emptySet())?.toMutableSet() ?: mutableSetOf()
+        if (currentSet.size > 200) {
+            val pruned = currentSet.toList().takeLast(100).toMutableSet()
+            pruned.add(fingerprint)
+            prefs.edit().putStringSet(KEY_PROCESSED_FINGERPRINTS, pruned).apply()
+        } else {
+            currentSet.add(fingerprint)
+            prefs.edit().putStringSet(KEY_PROCESSED_FINGERPRINTS, currentSet).apply()
+        }
+    }
+
     companion object {
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
         private const val KEY_AUTO_DETECTION = "auto_detection_enabled"
+        private const val KEY_AUTO_REMINDERS = "auto_reminders_enabled"
         private const val KEY_NOTIFICATIONS = "notifications_enabled"
         private const val KEY_DEFAULT_REMINDER_OFFSET = "default_reminder_offset"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_LAST_SCREENSHOT_TIMESTAMP = "last_screenshot_timestamp"
         private const val KEY_PROCESSED_SCREENSHOT_IDS = "processed_screenshot_ids"
+        private const val KEY_PROCESSED_FINGERPRINTS = "processed_event_fingerprints"
     }
 }

@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
         android:allowBackup="true"
@@ -33,6 +35,32 @@
                 <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
+
+        <!-- Background screenshot MediaStore trigger service (Section 3A) -->
+        <service
+            android:name=".detector.ScreenshotJobService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="true" />
+
+        <!-- Reschedules JobService triggers upon system reboot -->
+        <receiver
+            android:name=".detector.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Broadcast receiver for Undo action on automatic reminder notifications -->
+        <receiver
+            android:name=".notifications.UndoReminderReceiver"
+            android:exported="false" />
+
+        <!-- Broadcast receiver for scheduled alarm reminder delivery -->
+        <receiver
+            android:name=".notifications.ScreenshotAlarmReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>
